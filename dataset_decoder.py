@@ -1,6 +1,11 @@
 import os
+import os.path
 import numpy as np
 import cv2
+
+"""
+This is the script that decodes the MNIST dataset from the .ubyte files to .png images.
+"""
 
 def save_mnist_images(image_file, label_file, output_dir):
     with open(image_file, 'rb') as img_f, open(label_file, 'rb') as lbl_f:
@@ -16,14 +21,15 @@ def save_mnist_images(image_file, label_file, output_dir):
             cv2.imwrite(image_path, image)
 
 # Paths to the extracted .ubyte files
-train_images = 'database_encoded/train-images.idx3-ubyte'
-train_labels = 'database_encoded/train-labels.idx1-ubyte'
-test_images = 'database_encoded/t10k-images.idx3-ubyte'
-test_labels = 'database_encoded/t10k-labels.idx1-ubyte'
+
+train_images = os.path.join('dataset_encoded', 'train-images.idx3-ubyte')
+train_labels = os.path.join( 'dataset_encoded', 'train-labels.idx1-ubyte')
+test_images = os.path.join('dataset_encoded', 't10k-images.idx3-ubyte')
+test_labels = os.path.join('dataset_encoded', 't10k-labels.idx1-ubyte')
 
 # Output directories
-train_output = 'database_decoded/train'
-test_output = 'database_decoded/test'
+train_output = os.path.join('dataset_decoded', 'train')
+test_output = os.path.join('dataset_decoded', 'test')
 
 save_mnist_images(train_images, train_labels, train_output)
 save_mnist_images(test_images, test_labels, test_output)
