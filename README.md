@@ -6,8 +6,8 @@
 ### Downloading the dataset
 Go to [The Kaggle website](https://www.kaggle.com/datasets/hojjatk/mnist-dataset?resource=download)
 and follow their instructions to download the dataset into the
-`./dataset_decoded/` directory, or download the .zip file
-and unzip in into the `./dataset_decoded/` directory, then my follow
+`./dataset_encoded/` directory, or download the .zip file
+and unzip in into the `./dataset_encoded/` directory, then follow my
 instruction below to decode it.
 
 ### Decoding the dataset
