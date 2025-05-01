@@ -21,7 +21,6 @@ def save_mnist_images(image_file, label_file, output_dir):
             cv2.imwrite(image_path, image)
 
 # Paths to the extracted .ubyte files
-
 train_images = os.path.join('dataset_encoded', 'train-images.idx3-ubyte')
 train_labels = os.path.join( 'dataset_encoded', 'train-labels.idx1-ubyte')
 test_images = os.path.join('dataset_encoded', 't10k-images.idx3-ubyte')

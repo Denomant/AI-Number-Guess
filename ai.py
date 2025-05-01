@@ -3,7 +3,7 @@ The goal is to be able to create any size - any purpose neural networks out of h
 
 Usage example:
 NeuralNetwork([784, 100, 20, 15, 10], [lambda x: x, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
-# Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input and return a numpy array as output.
+# Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output.
 
 Offered Classes:
 Layer(size, activation_function)
@@ -22,6 +22,8 @@ from typing import Callable, Union, Tuple
 
 
 ActivationFunction = Callable[[np.ndarray], np.ndarray] # Function that can be considered as an activation function
+
+# TODO: return type annotations
 
 class Layer:
     """
@@ -56,22 +58,34 @@ class WeightMatrix:
     def __init__(self, source_layer : Layer, target_layer : Layer):
         # Initialize the weights with random float values between -1 and 1
         self.weights = np.random.uniform(-1, 1, (source_layer.size, target_layer.size))
+    
+    def _validate_array(self, array: np.ndarray):
+        """
+        Check that the array is a 1D array and has the same size as the target layer
+        """
+        # Check that the value is a 1D array, and has the same size as the target layer
+        if array.ndim != 1 or array.size != self.weights.shape[1]:
+            raise ValueError(
+                f"Array of new values must be a 1D array of size {self.weights.shape[1]}")
+        # Check that the elements are numeric
+        if not np.issubdtype(array.dtype, np.number):
+            raise ValueError("Array of new values must be a numeric array")
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[np.ndarray, float]:
         """
-        Get all the weights for a specific neuron in layer 1, or the specific weight between 2 neurons (one from layer1 and the second layer2)
+        Get all the weights for a specific neuron from source_layer, or the specific weight between 2 neurons (one from source_layer and the second from target_layer)
         For index type int - returns np.ndarray of weights
         For index type tuple - returns a float number
         """
         if isinstance(index, int):
-            # if index is listed as an integer, all weights for a specific Neuron will be returned in layer1, e.g object[index1]
+            # if index is listed as a single integer, all weights from a specific neuron in target_layer will be returned, e.g object[index1]
             # Also supports chained indexing, e.g object[index1][index2], here is how:
             # Matrix[index1] will return the np.ndarray, and then the [index2] will let numpy handle indexing inside the ndarray
             return self.weights[index]
 
         # if complex index is listed as a tuple, e.g object[index1, index2]
         elif isinstance(index, tuple):
-            # Avoiding TypeError from len() if index is not a tuple, and checks that all elements are valid indexes
+            # Avoiding TypeError from len() if index is not a tuple, and then checks that all elements are valid indexes
             if len(index) == 2 and all(isinstance(i, int) for i in index):
                 # Looks directly in the ndarray for the specific weight
                 return self.weights[index]
@@ -82,27 +96,51 @@ class WeightMatrix:
 
     def __setitem__(self, index, value):
         """
-        Setting new values in the weight matrix, the new value should be a numeric value (float or int).
+        Setting new values in the weight matrix, the new value should be a numeric value (float or int), or an instance of ndarray matching the expected structure (size, and numbers inside).
         Sets new value for the weight between neuron index1 in layer1 and neuron index2 in layer2
+        Or sets new value for all the weights between neuron index1 in layer1 and all the neurons in layer2
 
         Supports:
+        - Object[index] = ndarray of new values
         - Object[index1, index2] = NewValue
         - Object[index1][index2] = NewValue
         """
-        # Check value first
-        if not isinstance(value, (float, int)):
+        # Check that the value type is valid first
+        if not isinstance(value, (float, int, np.ndarray)):
             raise ValueError("Value must be a float or an int number")
+        # If it's a NumPy array, validate its structure
+        if isinstance(value, np.ndarray):
+            self._validate_array(value)
+
         # In cases of [1][2] the __getitem__ will be called first, and then numpy will handle the new value assignment
+
+        # Handling the case of a complex index, e.g object[index1, index2]
         if isinstance(index, tuple):
             # Avoiding TypeError from len() if index is not a tuple, and checks that all elements are valid indexes
             if len(index) == 2 and all(isinstance(i, int) for i in index):
                 # Looks directly in the ndarray for the specific weight
                 self.weights[index] = value
             else:
-                raise IndexError("Index must be a tuple of 2 ints")
+                raise IndexError(
+                    "Tuple index must be of length 2 and contain only integers: (int, int). "
+                    f"Got: {index} (length {len(index)})"
+                )
+
+        # Handling the case of a single index, e.g object[index1]
+        elif isinstance(index, int):
+            # Numpy will handle invalid indexing, so I have to check only that the new value is a valid array
+            if isinstance(value, np.ndarray):
+                self._validate_array(value)
+            self.weights[index] = value
+
         else:
-            raise IndexError("Index must be a tuple of 2 ints")
-            # in case of single int, __getitem__ will be called instead
+            raise IndexError(
+                "Index must be one of the following:\n"
+                "- A single integer, with the new value being a 1D NumPy array of correct shape\n"
+                "- A tuple of two integers (i, j) for assigning a specific weight\n"
+                "- A chained index like [i][j]"
+                )
+            # in case of single int, __getitem__ will be called instead, so there is no need to handle the error message here
 
 
 class NeuralNetwork:
