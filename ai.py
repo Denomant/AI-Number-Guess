@@ -149,10 +149,25 @@ class NeuralNetwork:
     """
     # TODO: learning rate annealing - Decrease the learning rate as the training progresses
     def __init__(self, layer_sizes : list[int], layer_types : list[ActivationFunction]):
-        # TODO: Chenge to if - raise statement
-        assert len(layer_sizes) == len(layer_types), "Layer sizes and types must be the same length"
-        # TODO
-        pass
+        # Check the inputs are valid
+        if len(layer_sizes) == len(layer_types):
+            raise ValueError("Layer sizes and types must be the same length")
+        # Check Later sizes are valid
+        if not all(isinstance(i, int) for i in layer_sizes):
+            raise ValueError("Layer sizes must be a list of integers")
+        # There is no way to check that the activation function is valid (Other than type annotations), so I will just assume that the user knows what they are doing
+        
+        # Create the layers
+        self.layers = [Layer(layer_sizes[i], layer_types[i]) for i in range(len(layer_sizes))]
+
+        # Create the weight matrices; Specific weight is going to be accessed by the index of the source layer
+        # e.g the weight matrix between layer 1 ([0] in self.layers) and layer 2 will be accessed by layers[0]
+        self.weights = []
+        # Too complex in one line format - hard to read
+        for i in range(len(layer_sizes) - 1):
+            # Create the weight matrix between layer i and layer i+1
+            self.weights.append(WeightMatrix(self.layers[i], self.layers[i + 1]))
+        
 
 
 def BinaryStep(values : np.ndarray) -> np.ndarray:
