@@ -17,6 +17,7 @@ Softmax(values)
 ReLU(values)
 """
 
+from turtle import forward
 import numpy as np
 from typing import Callable, Union, Tuple
 
@@ -39,10 +40,12 @@ class Layer:
     def activate(self, raw_input : np.ndarray) -> None:
         """
         Store the input in the layer after applying the activation function on it
+        Return the neurons after activation
         """
         validate_array(raw_input, self.size)
         # Activation function are designed for the whole layers, rather than element by element
         self.neurons = self.activation_function(raw_input)
+        return self.neurons
 
     def clear(self):
         """
@@ -134,7 +137,7 @@ class WeightMatrix:
 
 class NeuralNetwork:
     """
-    Handles multiple layers and interconneweightscts them using multiple WeightMatrix objects
+    Handles multiple layers and interconnects them using multiple WeightMatrix objects
     """
     # TODO: learning rate annealing - Decrease the learning rate as the training progresses
     def __init__(self, layer_sizes : list[int], layer_types : list[ActivationFunction]):
@@ -156,7 +159,22 @@ class NeuralNetwork:
         for i in range(len(layer_sizes) - 1):
             # Create the weight matrix between layer i and layer i+1
             self.weights.append(WeightMatrix(self.layers[i], self.layers[i + 1]))
-        
+
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
+        """
+        Forward pass through the network
+        """
+        # Check that the input data is a 1D array and has the same size as the first layer
+        validate_array(input_data, self.layers[0].size)
+        # Pass the input data through the first layer, in case of a custom activation function
+        input_data = self.layers[0].activate(input_data)
+        for i in range(len(self.layers)-1):
+            # Get weights between layer i and i+1
+            weights = self.weights[i]
+            # Calculate the input for the next layer
+            input_data = self.layers[i+1].activate(np.dot(input_data, weights.weights))
+        return input_data
+
 
 def validate_array(array: np.ndarray, expected_size: int) -> None:
     """
