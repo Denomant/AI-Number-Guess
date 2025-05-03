@@ -24,6 +24,7 @@ from typing import Callable, Union, Tuple
 ActivationFunction = Callable[[np.ndarray], np.ndarray] # Function that can be considered as an activation function
 
 # TODO: return type annotations
+# TODO: Move _array validation from WeightMatrix as a separate function so its available for other classes as well
 
 class Layer:
     """
@@ -39,8 +40,7 @@ class Layer:
         """
         Store the input in the layer after applying the activation function on it
         """
-        if len(raw_input) != self.size:
-            raise ValueError(f"Input size {len(raw_input)} does not match layer size {self.size}")
+        validate_array(raw_input, self.size)
         # Activation function are designed for the whole layers, rather than element by element
         self.neurons = self.activation_function(raw_input)
 
@@ -58,18 +58,6 @@ class WeightMatrix:
     def __init__(self, source_layer : Layer, target_layer : Layer):
         # Initialize the weights with random float values between -1 and 1
         self.weights = np.random.uniform(-1, 1, (source_layer.size, target_layer.size))
-    
-    def _validate_array(self, array: np.ndarray):
-        """
-        Check that the array is a 1D array and has the same size as the target layer
-        """
-        # Check that the value is a 1D array, and has the same size as the target layer
-        if array.ndim != 1 or array.size != self.weights.shape[1]:
-            raise ValueError(
-                f"Array of new values must be a 1D array of size {self.weights.shape[1]}")
-        # Check that the elements are numeric
-        if not np.issubdtype(array.dtype, np.number):
-            raise ValueError("Array of new values must be a numeric array")
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[np.ndarray, float]:
         """
@@ -106,11 +94,12 @@ class WeightMatrix:
         - Object[index1][index2] = NewValue
         """
         # Check that the value type is valid first
-        if not isinstance(value, (float, int, np.ndarray)):
+        if not isinstance(value, (float, int, np.floating, np.integer, np.ndarray)):
             raise ValueError("Value must be a float or an int number")
-        # If it's a NumPy array, validate its structure
+        # If it's a NumPy array, validate its structure, if its a number it should not be validated
         if isinstance(value, np.ndarray):
-            self._validate_array(value)
+            # Check that the array is 1D and has the same size as the target layer
+            validate_array(value, self.weights.shape[1])
 
         # In cases of [1][2] the __getitem__ will be called first, and then numpy will handle the new value assignment
 
@@ -129,8 +118,8 @@ class WeightMatrix:
         # Handling the case of a single index, e.g object[index1]
         elif isinstance(index, int):
             # Numpy will handle invalid indexing, so I have to check only that the new value is a valid array
-            if isinstance(value, np.ndarray):
-                self._validate_array(value)
+            # If the index is an integer then the value should be an array anyway, so its okay that the function is checking for it
+            validate_array(value, self.weights.shape[1])
             self.weights[index] = value
 
         else:
@@ -150,7 +139,7 @@ class NeuralNetwork:
     # TODO: learning rate annealing - Decrease the learning rate as the training progresses
     def __init__(self, layer_sizes : list[int], layer_types : list[ActivationFunction]):
         # Check the inputs are valid
-        if len(layer_sizes) == len(layer_types):
+        if len(layer_sizes) != len(layer_types):
             raise ValueError("Layer sizes and types must be the same length")
         # Check Later sizes are valid
         if not all(isinstance(i, int) for i in layer_sizes):
@@ -169,6 +158,17 @@ class NeuralNetwork:
             self.weights.append(WeightMatrix(self.layers[i], self.layers[i + 1]))
         
 
+def validate_array(array: np.ndarray, expected_size: int) -> None:
+    """
+    Check that the array is a 1D array and has the same size as is expected to be
+    """
+    if not isinstance(array, np.ndarray):
+        raise ValueError("Input must be a NumPy array")
+    if array.ndim != 1:
+        raise ValueError("Input must be a 1D NumPy array")
+    if array.shape[0] != expected_size:
+        raise ValueError(
+            f"Input size {array.shape[0]} does not match expected size {expected_size}")
 
 def BinaryStep(values : np.ndarray) -> np.ndarray:
     """
