@@ -2,8 +2,8 @@
 The goal is to be able to create any size - any purpose neural networks out of having only the list of layer sizes (e.g [8, 4, 2]) and layer types (activation function for each layer).
 
 Usage example:
-NeuralNetwork([784, 100, 20, 15, 10], [lambda x: x, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
-# Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output.
+NeuralNetwork([784, 100, 20, 15, 10], [Linear, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
+# Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output. Follow the ActivationFunction class to avoid conflicts.
 
 Offered Classes:
 Layer(size, activation_function)
@@ -11,21 +11,31 @@ WeightMatrix(layer1, layer2)
 NeuralNetwork(layer_sizes, layer_types)
 
 Offered Functions:
+Linear(values)
 BinaryStep(values)
 Sigmoid(values)
 Softmax(values)
 ReLU(values)
 """
 
-from turtle import forward
 import numpy as np
 from typing import Callable, Union, Tuple
+from abc import ABC, abstractmethod
 
-
-ActivationFunction = Callable[[np.ndarray], np.ndarray] # Function that can be considered as an activation function
 
 # TODO: return type annotations
-# TODO: Move _array validation from WeightMatrix as a separate function so its available for other classes as well
+
+class ActivationFunction(ABC):
+    """
+    Abstract base class for activation functions that enforces implementation of both the function and its derivative
+    """
+    @abstractmethod
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        raise NotImplementedError("Activation function should have the __call__ method implemented")
+
+    @abstractmethod
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        raise NotImplementedError("Activation function should have the derivative method implemented")
 
 class Layer:
     """
@@ -37,14 +47,14 @@ class Layer:
         # Field initialization for later use
         self.neurons = np.zeros(size)
 
-    def activate(self, raw_input : np.ndarray) -> None:
+    def activate(self, input_data : np.ndarray) -> np.ndarray:
         """
         Store the input in the layer after applying the activation function on it
         Return the neurons after activation
         """
-        validate_array(raw_input, self.size)
+        validate_array(input_data, self.size)
         # Activation function are designed for the whole layers, rather than element by element
-        self.neurons = self.activation_function(raw_input)
+        self.neurons = self.activation_function(input_data)
         return self.neurons
 
     def clear(self):
@@ -140,17 +150,17 @@ class NeuralNetwork:
     Handles multiple layers and interconnects them using multiple WeightMatrix objects
     """
     # TODO: learning rate annealing - Decrease the learning rate as the training progresses
-    def __init__(self, layer_sizes : list[int], layer_types : list[ActivationFunction]):
+    def __init__(self, layer_sizes : list[int], activation_functions : list[ActivationFunction]):
         # Check the inputs are valid
-        if len(layer_sizes) != len(layer_types):
+        if len(layer_sizes) != len(activation_functions):
             raise ValueError("Layer sizes and types must be the same length")
-        # Check Later sizes are valid
+        # Check sizes are valid
         if not all(isinstance(i, int) for i in layer_sizes):
             raise ValueError("Layer sizes must be a list of integers")
         # There is no way to check that the activation function is valid (Other than type annotations), so I will just assume that the user knows what they are doing
         
         # Create the layers
-        self.layers = [Layer(layer_sizes[i], layer_types[i]) for i in range(len(layer_sizes))]
+        self.layers = [Layer(layer_sizes[i], activation_functions[i]) for i in range(len(layer_sizes))]
 
         # Create the weight matrices; Specific weight is going to be accessed by the index of the source layer
         # e.g the weight matrix between layer 1 ([0] in self.layers) and layer 2 will be accessed by layers[0]
@@ -175,7 +185,13 @@ class NeuralNetwork:
             input_data = self.layers[i+1].activate(np.dot(input_data, weights.weights))
         return input_data
 
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        """
+        Call the forward function using a simplified syntax
+        """
+        return self.forward(input_data)
 
+            
 def validate_array(array: np.ndarray, expected_size: int) -> None:
     """
     Check that the array is a 1D array and has the same size as is expected to be
@@ -188,35 +204,75 @@ def validate_array(array: np.ndarray, expected_size: int) -> None:
         raise ValueError(
             f"Input size {array.shape[0]} does not match expected size {expected_size}")
 
-def BinaryStep(values : np.ndarray) -> np.ndarray:
+
+class Linear(ActivationFunction):
+    """
+    Linear activation function
+    Returns the input as is
+    """
+
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        return input_data
+
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        # Derivative of linear function is always 1
+        return np.ones(input_data.shape)
+
+
+class BinaryStep(ActivationFunction):
     """
     Binary step activation function
     if number is positive, return 1, else return 0
     """
-    return np.where(values > 0, 1, 0)
+
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        return np.where(input_data > 0, 1, 0)
+
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        # Derivative of binary step is always 0, and usually not used in practice, so Sigmoid derivative is used instead for approximation
+        activated = self(input_data)
+        return activated * (1 - activated)
 
 
-def Sigmoid(values : np.ndarray) -> np.ndarray:
+class Sigmoid(ActivationFunction):
     """
     Sigmoid activation function
     returns a number between 0 and 1 for any number
     """
-    bounded = np.clip(values, -500, 500)
-    return 1 / (1 + np.exp(-bounded))
+
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        bounded = np.clip(input_data, -500, 500)
+        return 1 / (1 + np.exp(-bounded))
+
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        activated = self(input_data)
+        return activated * (1 - activated)
 
 
-def Softmax(values : np.ndarray) -> np.ndarray:
+class Softmax(ActivationFunction):
     """
     Softmax activation function
     Converts a vector of numbers into a probability distribution
     """
-    exp_x = np.exp(values - np.max(values))
-    return exp_x / np.sum(exp_x, axis=0)
+
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        exp_x = np.exp(input_data - np.max(input_data))
+        return exp_x / np.sum(exp_x, axis=0)
+
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        # Softmax derivative would require a Jacobian matrix and branching of the whole NeuralNetwork class training, so I used the Sigmoid derivative instead for approximation
+        activated = self(input_data)
+        return activated * (1 - self(activated))
 
 
-def ReLU(values : np.ndarray) -> np.ndarray:
+class ReLU(ActivationFunction):
     """
     ReLU activation function
-    if number is positive, return number, else return 0
+    Returns the input if positive, else returns 0
     """
-    return np.maximum(0, values)
+
+    def __call__(self, input_data: np.ndarray) -> np.ndarray:
+        return np.maximum(0, input_data)
+
+    def derivative(self, input_data: np.ndarray) -> np.ndarray:
+        return np.where(input_data > 0, 1, 0)
