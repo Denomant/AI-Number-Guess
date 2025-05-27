@@ -2,7 +2,7 @@
 The goal is to be able to create any size - any purpose neural networks out of having only the list of layer sizes (e.g [8, 4, 2]) and layer types (activation function for each layer).
 
 Usage example:
-NeuralNetwork([784, 100, 20, 15, 10], [Linear, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
+NeuralNetwork([784, 100, 20, 15, 10], [ai.Linear, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
 # Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output. Follow the ActivationFunction class to avoid conflicts.
 
 Offered Classes:
@@ -10,12 +10,14 @@ Layer(size, activation_function)
 WeightMatrix(layer1, layer2)
 NeuralNetwork(layer_sizes, layer_types)
 
-Offered Functions:
+Offered Activation Functions:
 Linear(values)
 BinaryStep(values)
 Sigmoid(values)
 Softmax(values)
 ReLU(values)
+Offered Loss Functions:
+mean_squared_error(predictions, expected)
 """
 
 import numpy as np
@@ -24,6 +26,7 @@ from abc import ABC, abstractmethod
 
 
 # TODO: return type annotations
+# TODO: and "Paramentrs:" section to all docstrings
 
 class ActivationFunction(ABC):
     """
@@ -36,6 +39,17 @@ class ActivationFunction(ABC):
     @abstractmethod
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
         raise NotImplementedError("Activation function should have the derivative method implemented")
+
+
+def mean_squared_error(predictions: np.ndarray, expected: np.ndarray) -> float:
+    """
+    Calculate the mean squared error between the predictions and the expected output
+    """
+    if predictions.shape != expected.shape:
+        raise ValueError(
+            "Predictions and expected output must have the same shape")
+    return np.mean((predictions - expected) ** 2)
+
 
 class Layer:
     """
@@ -170,20 +184,37 @@ class NeuralNetwork:
             # Create the weight matrix between layer i and layer i+1
             self.weights.append(WeightMatrix(self.layers[i], self.layers[i + 1]))
 
+        # Iniialize backpropagation variables in advance
+        self._activations = []  # Store activations for each layer during forward pass
+        self._zs = []  # Store the pre-activation values (z) for each layer during forward pass
+
     def forward(self, input_data: np.ndarray) -> np.ndarray:
         """
-        Forward pass through the network
+        Forward pass through the network and store intermediate results
         """
         # Check that the input data is a 1D array and has the same size as the first layer
         validate_array(input_data, self.layers[0].size)
+
+        # Reset last activations and zs
+        self._activations = [input_data.copy()] # Store the very first input as "pre-layer" activation, in case first layer isn't linear. Also the input comes from outside the network, so for safety it is copied.
+        self._zs = []  # Reset the pre-activation values
+
         # Pass the input data through the first layer, in case of a custom activation function
-        input_data = self.layers[0].activate(input_data)
+        current_activation = self.layers[0].activate(input_data)
         for i in range(len(self.layers)-1):
             # Get weights between layer i and i+1
             weights = self.weights[i]
-            # Calculate the input for the next layer
-            input_data = self.layers[i+1].activate(np.dot(input_data, weights.weights))
-        return input_data
+
+            # Calculate the pre-activation values (z) for the next layer
+            z = np.dot(current_activation, weights.weights)
+            self._zs.append(z) 
+
+            # Apply activation function for the next layer
+            current_activation = self.layers[i+1].activate(z)
+            self._activations.append(current_activation)
+
+        # Return the final output
+        return current_activation
 
     def __call__(self, input_data: np.ndarray) -> np.ndarray:
         """
@@ -191,7 +222,68 @@ class NeuralNetwork:
         """
         return self.forward(input_data)
 
-            
+    def _backpropagation(self, single_input_data: np.ndarray, expected_output: np.ndarray, 
+                         loss_function: Callable[[np.ndarray, np.ndarray], float]):
+        """
+        Calculates the gradients for the weights and biases using backpropagation algorithm for a single training example. Assumes all inputs are valid, and is not intended to be called directly by the user
+        """
+        # Forward pass to get the output, and fill the _activations and _zs lists
+        output = self.forward(single_input_data)
+
+        # Prepare empty gradient list, matching each weight matrix shape
+        nabla_w = [np.zeros_like(w.weights) for w in self.weights]
+
+        # Compute the error / loss / delta for the output layer
+        # delta_L = (a_L - y) * f'(z_L)
+        error = output - expected_output
+        deriv = self.layers[-1].activation_function.derivative(self._zs[-1])
+        delta = error * deriv
+
+        # Gradient for the last layer's weights
+        prev_activation = self._activations[-2]
+        nabla_w[-1] = np.outer(prev_activation, delta)
+
+        # Backpropagate through the hidden layers l = L-1, ... 1
+        # delta_l = (W_{l+1} delta_{l+1}) * sigma'(z_l) // Chain rule
+        for layer_idx in range(2, len(self.layers)):
+            z_val = self._zs[-layer_idx]  # pre-activation at layer l
+            sigma_prime = self.layers[-layer_idx].activation_function.derivative(z_val)
+
+            # propagate delta backward, weight matrix indexing offset by +1
+            weight_next = self.weights[-layer_idx + 1].weights
+            delta = np.dot(weight_next, delta) * sigma_prime
+
+            # gradient for this layer's weights: a_{l-1} outer delta_l
+            prev_activation = self._activations[-layer_idx - 1]
+            nabla_w[-layer_idx] = np.outer(prev_activation, delta)
+
+        # Return list of gradient matrices for each weight matrix
+        return nabla_w
+
+    def gradient_descent_step(self, input_datas: np.ndarray, expected_outputs: np.ndarray,
+                              loss_function: Callable[[np.ndarray, np.ndarray], float]=mean_squared_error,
+                              learning_rate: float=0.7):
+        # TODO: Validate inputs
+        # Determine the number of training examples
+        n_samples = input_datas.shape[0]
+        
+        # Initialize the accumulated gradients for each weight matrix
+        sum_nabla = [np.zeros_like(w.weights) for w in self.weights]
+
+        # Loop over each training example, to compute individual gradients and later average them all
+        for sample_input, sample_expected_output in zip(input_datas, expected_outputs):
+            # Backpropagate this single example to get gradients for each weight matrix
+            sample_gradients = self._backpropagation(sample_input, sample_expected_output, loss_function)
+            # Accumulate gradients: add each sample's gradients to the running total
+            sum_nabla = [total_grad + grad for total_grad, grad in zip(sum_nabla, sample_gradients)]
+
+        # Update weights using averaged gradients 
+        for w_mat, total_grad in zip(self.weights, sum_nabla):
+            # Compute the average gradient and scale by learning rate, then subtract from weights
+            weight_update = (learning_rate / n_samples) * total_grad
+            w_mat.weights -= weight_update
+
+
 def validate_array(array: np.ndarray, expected_size: int) -> None:
     """
     Check that the array is a 1D array and has the same size as is expected to be
