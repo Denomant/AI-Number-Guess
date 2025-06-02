@@ -2,7 +2,7 @@
 The goal is to be able to create any size - any purpose neural networks out of having only the list of layer sizes (e.g [8, 4, 2]) and layer types (activation function for each layer).
 
 Usage example:
-NeuralNetwork([784, 100, 20, 15, 10], [ai.Linear, ai.Sigmoid, ai.ReLU ,ai.BinaryStep, ai.Softmax])
+NeuralNetwork([784, 30, 20, 15, 10], [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
 # Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output. Follow the ActivationFunction class to avoid conflicts.
 
 Offered Classes:
@@ -85,6 +85,8 @@ class WeightMatrix:
     def __init__(self, source_layer : Layer, target_layer : Layer):
         # Initialize the weights with random float values between -1 and 1
         self.weights = np.random.uniform(-1, 1, (source_layer.size, target_layer.size))
+        # Intialize the bias from source layer to target layer, as a 1D array with random values
+        self.biases = np.random.uniform(-1, 1, (target_layer.size, ))
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[np.ndarray, float]:
         """
@@ -205,8 +207,8 @@ class NeuralNetwork:
             # Get weights between layer i and i+1
             weights = self.weights[i]
 
-            # Calculate the pre-activation values (z) for the next layer
-            z = np.dot(current_activation, weights.weights)
+            # Calculate the pre-activation values (z) for the next layer, including biases
+            z = np.dot(current_activation, weights.weights) + weights.biases
             self._zs.append(z) 
 
             # Apply activation function for the next layer
@@ -232,12 +234,16 @@ class NeuralNetwork:
 
         # Prepare empty gradient list, matching each weight matrix shape
         nabla_w = [np.zeros_like(w.weights) for w in self.weights]
+        nabla_b = [np.zeros_like(w.biases) for w in self.weights]
 
         # Compute the error / loss / delta for the output layer
         # delta_L = (a_L - y) * f'(z_L)
         error = output - expected_output
         deriv = self.layers[-1].activation_function.derivative(self._zs[-1])
         delta = error * deriv
+
+        # Gradient for the last layer's biases
+        nabla_b[-1] = delta.copy()
 
         # Gradient for the last layer's weights
         prev_activation = self._activations[-2]
@@ -253,12 +259,15 @@ class NeuralNetwork:
             weight_next = self.weights[-layer_idx + 1].weights
             delta = np.dot(weight_next, delta) * sigma_prime
 
+            # Gradient for this layer's biases - just the delta
+            nabla_b[-layer_idx] = delta.copy()
+
             # gradient for this layer's weights: a_{l-1} outer delta_l
             prev_activation = self._activations[-layer_idx - 1]
             nabla_w[-layer_idx] = np.outer(prev_activation, delta)
 
         # Return list of gradient matrices for each weight matrix
-        return nabla_w
+        return nabla_w, nabla_b
 
     def gradient_descent_step(self, input_datas: np.ndarray, expected_outputs: np.ndarray,
                               loss_function: Callable[[np.ndarray, np.ndarray], float]=mean_squared_error,
@@ -268,20 +277,26 @@ class NeuralNetwork:
         n_samples = input_datas.shape[0]
         
         # Initialize the accumulated gradients for each weight matrix
-        sum_nabla = [np.zeros_like(w.weights) for w in self.weights]
+        sum_nabla_w = [np.zeros_like(w.weights) for w in self.weights]
+        sum_nabla_b = [np.zeros_like(w.biases) for w in self.weights]
 
         # Loop over each training example, to compute individual gradients and later average them all
         for sample_input, sample_expected_output in zip(input_datas, expected_outputs):
             # Backpropagate this single example to get gradients for each weight matrix
-            sample_gradients = self._backpropagation(sample_input, sample_expected_output, loss_function)
+            sample_gradients_w, sample_gradients_b = self._backpropagation(sample_input, sample_expected_output, loss_function)
             # Accumulate gradients: add each sample's gradients to the running total
-            sum_nabla = [total_grad + grad for total_grad, grad in zip(sum_nabla, sample_gradients)]
+            sum_nabla_w = [total_grad + grad for total_grad, grad in zip(sum_nabla_w, sample_gradients_w)]
+            sum_nabla_b = [total_grad + grad for total_grad, grad in zip(sum_nabla_b, sample_gradients_b)]
 
         # Update weights using averaged gradients 
-        for w_mat, total_grad in zip(self.weights, sum_nabla):
+        for i, w_matrix in enumerate(self.weights):
             # Compute the average gradient and scale by learning rate, then subtract from weights
-            weight_update = (learning_rate / n_samples) * total_grad
-            w_mat.weights -= weight_update
+            weight_update = (learning_rate / n_samples) * sum_nabla_w[i]
+            w_matrix.weights -= weight_update
+
+            # Bias update similarly
+            bias_update = (learning_rate / n_samples) * sum_nabla_b[i]
+            w_matrix.biases -= bias_update
 
 
 def validate_array(array: np.ndarray, expected_size: int) -> None:
@@ -352,9 +367,9 @@ class Softmax(ActivationFunction):
         return exp_x / np.sum(exp_x, axis=0)
 
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
-        # Softmax derivative would require a Jacobian matrix and branching of the whole NeuralNetwork class training, so I used the Sigmoid derivative instead for approximation
-        activated = self(input_data)
-        return activated * (1 - self(activated))
+        # Softmax derivative would require a Jacobian matrix and branching of the whole NeuralNetwork class training, so I used an aproximation
+        s = self(input_data)
+        return s * (1 - s)
 
 
 class ReLU(ActivationFunction):
