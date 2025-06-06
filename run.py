@@ -28,6 +28,15 @@ if __name__ == '__main__':
     # Initailize drawing constants:
     # Buttons:
     all_buttons = initialize_buttons(screen)
+    # Bars params:
+    # FIXME: A bit off-centered vertically to the bottom
+    bar_h = HEIGHT / 3 / 10
+    bar_w = WIDTH / 2 / 2
+    spacing = bar_h / 10
+    start_x = WIDTH / 4 * 3 - (bar_w / 2)
+    start_y = HEIGHT / 2 - ((10*bar_h + 9*spacing) / 2)
+
+    font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
     while is_active:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -44,16 +53,6 @@ if __name__ == '__main__':
                 pass
         
         render(screen, picture_dummy, ai_dummy)
-
-        # FIXME: A bit off-centered vertically to the bottom      
-        # Draw predictions bars 
-        bar_h = HEIGHT / 3 / 10
-        bar_w = WIDTH / 2 / 2
-        spacing = bar_h / 10
-        start_x = WIDTH / 4 * 3 - (bar_w / 2)
-        start_y = HEIGHT / 2 - ((10*bar_h + 9*spacing) / 2)
-
-        font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
         draw_predictions(screen, ai_dummy, start_x, start_y, bar_h, bar_w, spacing, font)
 
         # Draw all the buttons

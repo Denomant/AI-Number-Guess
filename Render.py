@@ -62,7 +62,6 @@ def draw_predictions(surface, predictions, start_x, start_y, bar_height=20, bar_
 
         # Drawing the numbers a labels using font
         if font:
-            print(i)
             label = font.render(f'{i}', True, (255, 255, 255))
             surface.blit(label, (start_x - 25, y))
             
