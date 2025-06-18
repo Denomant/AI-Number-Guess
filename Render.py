@@ -3,7 +3,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def render(screen: pygame.Surface, picture: NDArray[np.int8], ai_results: NDArray[np.float16]):
+# TODO: Add meaningful doc
+def render(screen: pygame.Surface, picture: NDArray[np.int8], pixel_size):
     # TODO check the sizes and types of the inputs using validate_array from ai
     if picture.ndim != 2:
         raise ValueError("Picture is expected to be a 2 dimentional ndarray")
@@ -14,19 +15,20 @@ def render(screen: pygame.Surface, picture: NDArray[np.int8], ai_results: NDArra
         if not all((j <= 255) for j in line):
             raise ValueError("The picture is expected to contain only integers smaller than 255")
 
-    width, height = screen.get_size()
-    width = 1 * height # Adjust factor if neccesary
-
-    pixel_w, pixel_h = width / len(picture[0]), len(picture)
-    pixel_rect = pygame.Rect(0, 0, pixel_w, pixel_h)
+    # Draw the frame
+    frame_rect = pygame.Rect(0, 0, pixel_size*28+1, pixel_size*28+1)
+    pygame.draw.rect(screen, (255, 255, 255), frame_rect)
+    # Draw the picture
+    current_x, current_y = 0, 0
     for line in picture:
         for pixel in line:
+            pixel_rect = pygame.Rect(current_x, current_y, pixel_size, pixel_size)
             # Draw pixel
             pygame.draw.rect(screen, (pixel, pixel, pixel), pixel_rect)
             # Update next pixel location
-            pixel_rect.left += pixel_w
-        pixel_rect.bottom += pixel_h
-        pixel_rect.left = 0
+            current_x += pixel_size
+        current_y += pixel_size
+        current_x = 0
         
 
 def draw_predictions(surface, predictions, start_x, start_y, bar_height=20, bar_width=200, spacing=10, font=None):
