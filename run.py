@@ -30,7 +30,7 @@ if __name__ == '__main__':
     picture_size = min(HEIGHT, WIDTH//2)
     pixel_size = picture_size // 28
     # Buttons:
-    all_buttons = initialize_buttons(screen)
+    all_buttons = initialize_buttons(screen, current_picture, ai_dummy)
     # Bars params:
     # FIXME: A bit off-centered vertically to the bottom
     bar_h = HEIGHT / 3 / 10

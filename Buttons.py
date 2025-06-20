@@ -21,7 +21,7 @@ class Button:
         surface.blit(self._surface, self._rectangle)
 
 
-def initialize_buttons(screen):
+def initialize_buttons(screen, picture, ai_results):
     """
     Creates Buttons for MNIST number guesser with respect to screen height, and places them with respect to screen width
     returns the Buttons in order:
@@ -48,10 +48,18 @@ def initialize_buttons(screen):
         pass
     save_b = Button(join("static", "save.png"), _save, (screen_w-3*button_h, 0), (button_h, button_h))
 
-   # train
+    # train
     def _train():
         # TODO: Ask how many cycles of training, learning annealing rate, dropout rate, and k batch sizes, then train the neural network accordingly
         pass
     train_b = Button(join("static", "train.png"), _train, (screen_w-4*button_h, 0), (button_h, button_h))
 
-    return exit_b, import_b, save_b, train_b
+    # clear
+    def _clear():
+        # TODO: Add more descriptive doc string
+        picture.fill(0)
+        
+
+    clear_b = Button(join("static", "clear.png"), _clear, (screen_w-5*button_h, 0), (button_h, button_h))
+    
+    return exit_b, import_b, save_b, train_b, clear_b
