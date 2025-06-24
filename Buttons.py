@@ -198,8 +198,8 @@ def initialize_buttons(screen, picture, ai):
                 title = "Fail: No Such Save Option"
                 continue
 
-            extention = ".png" if save_type.lower() == "picture" else ".pkl"
-            path = save_file + extention
+            extension = ".png" if save_type.lower() == "picture" else ".pkl"
+            path = save_file + extension
 
             if not exists(path):
                 title = "Fail: No Such File Exist"
@@ -207,10 +207,10 @@ def initialize_buttons(screen, picture, ai):
 
             # If all fields are filled correctly
             # If a picure
-            if extention == ".png":
+            if extension == ".png":
                 image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
                 if image is None:
-                    title = "Fail: To Load Image"
+                    title = "Fail: Could Not Load Image"
                     continue
 
                 if image.shape != (28, 28):
@@ -220,7 +220,7 @@ def initialize_buttons(screen, picture, ai):
                 np.copyto(picture, image)
                 return None
 
-            elif extention == ".pkl":
+            elif extension == ".pkl":
                 # TODO: Load Neural Network using pickle
                 return None
             else:
