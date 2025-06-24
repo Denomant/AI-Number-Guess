@@ -12,7 +12,7 @@ INFO = pygame.display.Info()
 
 # Changeable
 WIDTH, HEIGHT = INFO.current_w, INFO.current_h
-MAX_FPS = 60
+MAX_FPS = 120
 
 # Internal variables
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -32,7 +32,6 @@ if __name__ == '__main__':
     # Buttons:
     all_buttons = initialize_buttons(screen, current_picture, ai_dummy)
     # Bars params:
-    # FIXME: A bit off-centered vertically to the bottom
     bar_h = HEIGHT / 3 / 10
     bar_w = WIDTH / 2 / 2
     spacing = bar_h / 10
@@ -56,11 +55,14 @@ if __name__ == '__main__':
             # Draw while mouse is held down
             if pygame.mouse.get_pressed()[0]:  # Left mouse button is held
                 pos_x, pos_y = pygame.mouse.get_pos()
-                if pos_x <= picture_size and pos_y <= picture_size * 28:
+                if pos_x <= picture_size and pos_y <= picture_size:
                     pixel_x = int(pos_x * 28 / picture_size)
                     pixel_y = int(pos_y * 28 / picture_size)
                     current_picture[pixel_y][pixel_x] = 255
 
+        # Clear previous frame
+        screen.fill((0, 0, 0))
+        
         render(screen, current_picture, pixel_size)
         draw_predictions(screen, ai_dummy, start_x, start_y, bar_h, bar_w, spacing, font)
 

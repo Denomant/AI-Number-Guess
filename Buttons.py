@@ -1,6 +1,9 @@
 import pygame
+import numpy as np
+import pickle
+import cv2
 from sys import exit
-from os.path import join
+from os.path import join, exists
 
 # TODO: add type hints and descriptive doc-strings
 class Button:
@@ -153,8 +156,17 @@ def initialize_buttons(screen, picture, ai):
     exit, import, save, learn, clear
     """
     screen_w, screen_h = screen.get_size()
+
     button_h = screen_h / 11
 
+    get_static = lambda x: join("static", x)
+
+    popup_size_ratio = 0.8
+    popup_w, popup_h = popup_size_ratio * screen_w, popup_size_ratio * screen_h
+    popup_left, popup_top = screen_w // 2 - 0.5 * popup_w, screen_h // 2 - 0.5 * popup_h
+    popup_config = (int(popup_left), int(popup_top), int(popup_w), int(popup_h))
+
+    # TODO: Add descriptive doc strings
     # exit
     def _exit():
         pygame.quit()
@@ -164,13 +176,64 @@ def initialize_buttons(screen, picture, ai):
     # import
     def _import():
         # TODO: Select a file, and import either weights into the NeuralNetwork or a picture
-        pass
+        fields = ["Are you trying to load a picture, or a trained neural network?",
+                  "Type the file name you are trying to load"]
+        title = "Load Options"
+        
+        while True:
+            options = Popup(screen, *popup_config, *fields, title=title)
+
+            # If cancelled, just leave
+            if options is None:
+                return None
+
+            # If at least one field was empty, or filled incoorectly - try again with an error message in the title
+            if '' in options:
+                title = "Fail: Some Fields Were Empty"
+                continue
+
+            save_type, save_file = options
+
+            if save_type.lower() not in ("picture", "neural network"):
+                title = "Fail: No Such Save Option"
+                continue
+
+            extention = ".png" if save_type.lower() == "picture" else ".pkl"
+            path = save_file + extention
+
+            if not exists(path):
+                title = "Fail: No Such File Exist"
+                continue
+
+            # If all fields are filled correctly
+            # If a picure
+            if extention == ".png":
+                image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                if image is None:
+                    title = "Fail: To Load Image"
+                    continue
+
+                if image.shape != (28, 28):
+                    title = "Fail: Image Is Not 28x28"
+                    continue
+
+                np.copyto(picture, image)
+                return None
+
+            elif extention == ".pkl":
+                # TODO: Load Neural Network using pickle
+                return None
+            else:
+                title = "Fail: Unknown Error"
+                continue
+
     import_b = Button(join("static", "import.png"), _import, (screen_w-2*button_h, 0), (button_h, button_h))
 
     # save
     def _save():
-        # TODO: Ask whether to save the picture or the weights 
-        pass
+        fields = ["Would you want to save the current picture, or the trained weights?",
+                  "How would you want to name the saved file? (no extention needed)"]
+        options = Popup(screen, *popup_config, *fields, title="Save Options")
     save_b = Button(join("static", "save.png"), _save, (screen_w-3*button_h, 0), (button_h, button_h))
 
     # train
@@ -181,7 +244,6 @@ def initialize_buttons(screen, picture, ai):
 
     # clear
     def _clear():
-        # TODO: Add more descriptive doc string
         picture.fill(0)
         
 
