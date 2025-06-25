@@ -16,8 +16,6 @@ BinaryStep(values)
 Sigmoid(values)
 Softmax(values)
 ReLU(values)
-Offered Loss Functions:
-mean_squared_error(predictions, expected)
 """
 
 import numpy as np
@@ -39,16 +37,6 @@ class ActivationFunction(ABC):
     @abstractmethod
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
         raise NotImplementedError("Activation function should have the derivative method implemented")
-
-
-def mean_squared_error(predictions: np.ndarray, expected: np.ndarray) -> float:
-    """
-    Calculate the mean squared error between the predictions and the expected output
-    """
-    if predictions.shape != expected.shape:
-        raise ValueError(
-            "Predictions and expected output must have the same shape")
-    return np.mean((predictions - expected) ** 2)
 
 
 class Layer:
@@ -224,8 +212,7 @@ class NeuralNetwork:
         """
         return self.forward(input_data)
 
-    def _backpropagation(self, single_input_data: np.ndarray, expected_output: np.ndarray, 
-                         loss_function: Callable[[np.ndarray, np.ndarray], float]):
+    def _backpropagation(self, single_input_data: np.ndarray, expected_output: np.ndarray):
         """
         Calculates the gradients for the weights and biases using backpropagation algorithm for a single training example. Assumes all inputs are valid, and is not intended to be called directly by the user
         """
@@ -270,7 +257,6 @@ class NeuralNetwork:
         return nabla_w, nabla_b
 
     def gradient_descent_step(self, input_datas: np.ndarray, expected_outputs: np.ndarray,
-                              loss_function: Callable[[np.ndarray, np.ndarray], float]=mean_squared_error,
                               learning_rate: float=0.7):
         # TODO: Validate inputs
         # Determine the number of training examples
@@ -283,7 +269,7 @@ class NeuralNetwork:
         # Loop over each training example, to compute individual gradients and later average them all
         for sample_input, sample_expected_output in zip(input_datas, expected_outputs):
             # Backpropagate this single example to get gradients for each weight matrix
-            sample_gradients_w, sample_gradients_b = self._backpropagation(sample_input, sample_expected_output, loss_function)
+            sample_gradients_w, sample_gradients_b = self._backpropagation(sample_input, sample_expected_output)
             # Accumulate gradients: add each sample's gradients to the running total
             sum_nabla_w = [total_grad + grad for total_grad, grad in zip(sum_nabla_w, sample_gradients_w)]
             sum_nabla_b = [total_grad + grad for total_grad, grad in zip(sum_nabla_b, sample_gradients_b)]
