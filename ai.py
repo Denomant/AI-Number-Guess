@@ -21,10 +21,11 @@ ReLU(values)
 import numpy as np
 from typing import Callable, Union, Tuple
 from abc import ABC, abstractmethod
+from random import shuffle
 
 
 # TODO: return type annotations
-# TODO: and "Paramentrs:" section to all docstrings
+# TODO: and "Parameters:" section to all docstrings
 
 class ActivationFunction(ABC):
     """
@@ -73,7 +74,7 @@ class WeightMatrix:
     def __init__(self, source_layer : Layer, target_layer : Layer):
         # Initialize the weights with random float values between -1 and 1
         self.weights = np.random.uniform(-1, 1, (source_layer.size, target_layer.size))
-        # Intialize the bias from source layer to target layer, as a 1D array with random values
+        # Initialize the bias from source layer to target layer, as a 1D array with random values
         self.biases = np.random.uniform(-1, 1, (target_layer.size, ))
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[np.ndarray, float]:
@@ -153,7 +154,6 @@ class NeuralNetwork:
     """
     Handles multiple layers and interconnects them using multiple WeightMatrix objects
     """
-    # TODO: learning rate annealing - Decrease the learning rate as the training progresses
     def __init__(self, layer_sizes : list[int], activation_functions : list[ActivationFunction]):
         # Check the inputs are valid
         if len(layer_sizes) != len(activation_functions):
@@ -283,6 +283,48 @@ class NeuralNetwork:
             # Bias update similarly
             bias_update = (learning_rate / n_samples) * sum_nabla_b[i]
             w_matrix.biases -= bias_update
+
+    def train(self, data: dict, epochs: int, batch_size: int=128, learning_rate: float=0.9, annealing_factor: float=0.9):
+        """
+        Trains the Neural Network on the given data using mini-batch gradient descent, and temperature-like learning rate annealing.
+        """
+
+        # Separate data from dict
+        inputs = []
+        labels = []
+        
+        for image, label in data.items():
+            validate_array(image, 28)
+            validate_array(image[0], 28)
+
+            # Flatten 28x28 to 784x
+            inputs.append(image.flatten())
+            # Convert label to one-hot list, to match output layer expected behaviour 
+            one_hot = np.zeros(10)
+            one_hot[label] = 1.0
+            labels.append(one_hot)
+        
+        # Combine inputs and labels for easy shufling and batching
+        combined = list(zip(inputs, labels))
+
+        # train loop
+        for i in range(epochs):
+            shuffle(combined)
+            
+            # Create batches
+            batches = [
+                combined[i:i + batch_size:] for i in range(0, len(combined), batch_size)
+            ]
+            
+            # Train on each batch
+            for batch in batches:
+                inputs = [pair[0] for pair in batch]
+                labels = [pair[1] for pair in batch]
+
+                self.gradient_descent_step(inputs, labels, learning_rate)
+
+            learning_rate *= annealing_factor
+
 
 
 def validate_array(array: np.ndarray, expected_size: int) -> None:
