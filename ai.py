@@ -2,7 +2,7 @@
 The goal is to be able to create any size - any purpose neural networks out of having only the list of layer sizes (e.g [8, 4, 2]) and layer types (activation function for each layer).
 
 Usage example:
-NeuralNetwork([784, 30, 20, 15, 10], [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
+ai.NeuralNetwork([784, 30, 20, 15, 10], [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
 # Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output. Follow the ActivationFunction class to avoid conflicts.
 
 Offered Classes:

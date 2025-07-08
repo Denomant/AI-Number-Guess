@@ -1,9 +1,11 @@
 import pygame
 import numpy as np
+import ai
 from Render import render, draw_predictions
 from Buttons import initialize_buttons
 from sys import exit
 from os.path import join
+
 
 
 
@@ -21,8 +23,9 @@ is_active = True
 
 current_picture = picture = np.zeros((28, 28), dtype=np.uint8) # Structure efficient for graw shadow storage
 
-# FIXME: Temporary solution
-ai_dummy = np.random.uniform(0, 1, 10) # 0 - 9 included
+# Initialize AI
+neural_network = ai.NeuralNetwork([784, 30, 20, 15, 10],
+                                  [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
 
 # Main loop
 if __name__ == '__main__':
@@ -30,7 +33,7 @@ if __name__ == '__main__':
     picture_size = min(HEIGHT, WIDTH//2)
     pixel_size = picture_size // 28
     # Buttons:
-    all_buttons = initialize_buttons(screen, current_picture, ai_dummy)
+    all_buttons = initialize_buttons(screen, current_picture, neural_network)
     # Bars params:
     bar_h = HEIGHT / 3 / 10
     bar_w = WIDTH / 2 / 2
@@ -58,13 +61,18 @@ if __name__ == '__main__':
                 if pos_x <= picture_size and pos_y <= picture_size:
                     pixel_x = int(pos_x * 28 / picture_size)
                     pixel_y = int(pos_y * 28 / picture_size)
+
+                    # TODO: add shades of grey
                     current_picture[pixel_y][pixel_x] = 255
 
         # Clear previous frame
         screen.fill((0, 0, 0))
         
+        # Update AI predictions in case new pixels were drawn
+        predictions = neural_network.forward(current_picture.flatten())
+
         render(screen, current_picture, pixel_size)
-        draw_predictions(screen, ai_dummy, start_x, start_y, bar_h, bar_w, spacing, font)
+        draw_predictions(screen, predictions, start_x, start_y, bar_h, bar_w, spacing, font)
 
         # Draw all the buttons
         for b in all_buttons:
