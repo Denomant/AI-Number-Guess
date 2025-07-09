@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 import ai
-from Render import render, draw_predictions
+from Render import render, draw_predictions, paint_brush
 from Buttons import initialize_buttons
 from sys import exit
 from os.path import join
@@ -58,12 +58,8 @@ if __name__ == '__main__':
             # Draw while mouse is held down
             if pygame.mouse.get_pressed()[0]:  # Left mouse button is held
                 pos_x, pos_y = pygame.mouse.get_pos()
-                if pos_x <= picture_size and pos_y <= picture_size:
-                    pixel_x = int(pos_x * 28 / picture_size)
-                    pixel_y = int(pos_y * 28 / picture_size)
-
-                    # TODO: add shades of grey
-                    current_picture[pixel_y][pixel_x] = 255
+                if pos_x < picture_size and pos_y < picture_size:
+                    paint_brush(current_picture, pos_x, pos_y, pixel_size, picture_size, 80)
 
         # Clear previous frame
         screen.fill((0, 0, 0))

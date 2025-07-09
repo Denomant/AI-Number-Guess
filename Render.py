@@ -3,6 +3,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+#TODO: add type anotations
+
 # TODO: Add meaningful doc
 def render(screen: pygame.Surface, picture: NDArray[np.int8], pixel_size):
     # TODO check the sizes and types of the inputs using validate_array from ai
@@ -35,6 +37,7 @@ def draw_predictions(surface, predictions, start_x, start_y, bar_height=20, bar_
     """
     Displays 10 predictions in percentage form (from 0-1) 
 
+    Parameters:
     surface: pygame.Surface where the predictions are going to get drawn
     predictions: list or a ndarray of 10 floats (0–1)
     start_x: The x of the top left corner of the bar at the very top
@@ -69,3 +72,45 @@ def draw_predictions(surface, predictions, start_x, start_y, bar_height=20, bar_
             
             percent_text = font.render(f'{percent:.2f}%', True, (255, 255, 255))
             surface.blit(percent_text, (start_x + bar_width + 10, y))
+
+
+def paint_brush(picture, center_x, center_y, pixel_size, picture_size, radius=80):
+    """
+    Simulates a soft round brush stroke on a 28x28 grayscale image. Already colored pixels can get only brighter (never darker)
+
+    Parameters:
+    picture: 28x28 uint8 array (grayscale image to paint on)
+    center_x: X coordinate (in screen pixels) where the brush is centered
+    center_y: Y coordinate (in screen pixels) where the brush is centered
+    pixel_size: Size (in screen pixels) of one image pixel
+    picture_size: Width or height of the whole image on screen (assumed square)
+    radius: Brush size in screen pixels (how far the softness spreads)
+    """
+    left_most = max(0, center_x - radius) 
+    right_most = min(picture_size, center_x + radius) 
+    top_most = max(0, center_y - radius) 
+    bottom_most = min(picture_size, center_y + radius)
+
+    for x in range(left_most, right_most+1, pixel_size):
+        for y in range(top_most, bottom_most+1, pixel_size):
+            # Normalize screen coordinates, into image indexes
+            pixel_x = int(x * 28 / picture_size)
+            pixel_y = int(y * 28 / picture_size)
+
+            # The farther the point from the center, the dimmer it should get. Also it should not be lighter 255, or dimmer than it already is.
+            dx = (x + 0.5 * pixel_size) - center_x
+            dy = (y + 0.5 * pixel_size) - center_y
+            distance = (dx**2 + dy**2) ** 0.5
+
+            if distance > radius:
+                continue
+
+            # Force back in range, just in case
+            pixel_x = min(picture.shape[1] - 1, pixel_x)
+            pixel_y = min(picture.shape[0] - 1, pixel_y)
+
+            shade = min(255, max(picture[pixel_y][pixel_x], int((1 - (distance / radius)) * 255)))
+
+            picture[pixel_y][pixel_x] = shade
+
+
