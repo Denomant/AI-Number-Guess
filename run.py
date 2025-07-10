@@ -15,17 +15,19 @@ INFO = pygame.display.Info()
 # Changeable
 WIDTH, HEIGHT = INFO.current_w, INFO.current_h
 MAX_FPS = 120
+brush_radius = 80
 
 # Internal variables
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 FPS_clock = pygame.time.Clock()
 is_active = True
 
-current_picture = picture = np.zeros((28, 28), dtype=np.uint8) # Structure efficient for graw shadow storage
+current_picture = np.zeros((28, 28), dtype=np.uint8) # uint8 does not support negatives but efficient for gray-scales
 
-# Initialize AI
+# Initialize AI, and predicions list
 neural_network = ai.NeuralNetwork([784, 30, 20, 15, 10],
                                   [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
+predictions = [0] * 10 
 
 # Main loop
 if __name__ == '__main__':
@@ -43,32 +45,54 @@ if __name__ == '__main__':
 
     font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
     while is_active:
+        mouse_pos = pygame.mouse.get_pos()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
                 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                # Button activations
-                pos = event.pos
-                for b in all_buttons:
-                    if b.get_rect().collidepoint(pos):
-                        b()
+                match event.button:
+                    case 1: # LMB
+                        # Check custom buttons
+                        pos = event.pos
+                        for b in all_buttons:
+                            if b.get_rect().collidepoint(pos):
+                                b()
+                        
+                        # In case the image or AI itself changed, predictaions should be recalculated
+                        predictions = neural_network.forward(current_picture.flatten())
 
-            # Draw while mouse is held down
-            if pygame.mouse.get_pressed()[0]:  # Left mouse button is held
-                pos_x, pos_y = pygame.mouse.get_pos()
-                if pos_x < picture_size and pos_y < picture_size:
-                    paint_brush(current_picture, pos_x, pos_y, pixel_size, picture_size, 80)
+                        # Drawing implemented when LMB is held, not when clicked
+
+                    # Decrease or increase brush size depending on the direction of the mouse scroll
+                    case 4: # Scroll up
+                        brush_radius += 10 
+                        brush_radius = round(brush_radius, -1) # Round to the nearest 10, if last size was pixel_size
+                    case 5: # Scroll down
+                        brush_radius -= 10
+                        brush_radius = max(brush_radius, pixel_size) # prevent negative numbers, and force brush to exist always
+
+        # Draw while mouse is held down, regardless of event loop
+        if pygame.mouse.get_pressed()[0]:  # Left mouse button is held
+            pos_x, pos_y = mouse_pos
+            if pos_x < picture_size and pos_y < picture_size:
+                paint_brush(current_picture, pos_x, pos_y, pixel_size, picture_size, brush_radius)
+
+                # Update AI predictions only right after new pixels were drawn
+                predictions = neural_network.forward(current_picture.flatten())
 
         # Clear previous frame
         screen.fill((0, 0, 0))
-        
-        # Update AI predictions in case new pixels were drawn
-        predictions = neural_network.forward(current_picture.flatten())
 
+        # Main render: image and predictions 
         render(screen, current_picture, pixel_size)
         draw_predictions(screen, predictions, start_x, start_y, bar_h, bar_w, spacing, font)
+
+        # Draw the current brush area, if its inside the picture
+        if mouse_pos[0] < picture_size and mouse_pos[1] < picture_size:
+            pygame.draw.circle(screen, (255, 255, 255), mouse_pos, brush_radius, 2)
 
         # Draw all the buttons
         for b in all_buttons:
