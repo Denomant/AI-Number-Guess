@@ -19,7 +19,7 @@ ReLU(values)
 """
 
 import numpy as np
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, Tuple, Dict
 from abc import ABC, abstractmethod
 from random import shuffle
 
@@ -38,6 +38,47 @@ class ActivationFunction(ABC):
     @abstractmethod
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
         raise NotImplementedError("Activation function should have the derivative method implemented")
+
+
+class DataPiece:
+    """
+    A modular data provider for NeuralNetwork inputs.
+
+    DataPiece can be used in 2 ways:
+    1. Direct initialization for static/pre-loaded data.
+    2. Subclassing to dynamically load or generate data in order to optimize memory usage.
+
+    Notes:
+    - Subclasses should ensure that get_data() returns data compatible with the NeuralNetwork's input layer shape.
+
+    Parameters:
+    - data (Any, optional): The static data that will be returned as is by get_data(). If not provided, get_data() MUST be overridden in the subclass.
+
+    Usage Examples:
+    1) Static Data:
+    >>> dp1 = DataPiece([1, 2, 4, 2, 1])
+    >>> dp1.get_data()
+    [1, 2, 4, 2, 1]
+
+    2) Subclassing for generating dynamic data:
+    >>> import numpy as np
+    >>> class RandomNoiseDataPiece(DataPiece):
+    ...     def get_data(self):
+    ...         return np.random.rand(784)
+    >>> dp1 = RandomNoiseDataPiece()
+    >>> dp1.get_data()
+    [0.67, 0.16, 0.52, ..., 0.42]
+    
+    3) Subclassing for loading dynamic data:
+    #TODO: Copy paste when MNIST image loader is ready
+    """
+    def __init__(self, data=None):
+        self._data = data
+
+    def get_data(self):
+        if self._data is None:
+            raise NotImplementedError("get_data() must be overridden in a subclass or data must be provided during initialization.")
+        return self._data
 
 
 class Layer:
@@ -182,6 +223,8 @@ class NeuralNetwork:
         """
         Forward pass through the network and store intermediate results
         """
+        # TODO: Add DataPiece support for inputs
+
         # Check that the input data is a 1D array and has the same size as the first layer
         validate_array(input_data, self.layers[0].size)
 
@@ -284,25 +327,40 @@ class NeuralNetwork:
             bias_update = (learning_rate / n_samples) * sum_nabla_b[i]
             w_matrix.biases -= bias_update
 
-    def train(self, data: dict, epochs: int, batch_size: int=128, learning_rate: float=0.9, annealing_factor: float=0.9):
+    def train(self, data: Dict[DataPiece, np.ndarray], epochs: int, batch_size: int=128, learning_rate: float=0.9, annealing_factor: float=0.7):
         """
-        Trains the Neural Network on the given data using mini-batch gradient descent, and temperature-like learning rate annealing.
+        Trains the Neural Network on the given data using mini-batch gradient descent, and temperature-like learning rate annealing. Annealing factor is applied epoch-wise, and at completion returns epoch-wise losses.
+
+        Parameters:
+        - data (dict): DataPiece subclass objects as keys; expected AI behavior as values.
+            Example:
+                {
+                 DataPieceObject1: Label1,
+                 DataPieceObject2: Label2
+                 ...
+                 DataPieceObjectN: LabelN
+                 }
+            * DataPieceObject must be an instance of DataPiece or its subclass, implementing a method to dynamically provide AI inputs
+            * Label must be ndarray matching the size of the final layer in the Neural Network and contain expected AI output for the specific input.
+        
+        Return:
+        #TODO the rest
         """
+        # TODO: Add epoch-wise loss tracking
 
         # Separate data from dict
         inputs = []
         labels = []
         
         for image, label in data.items():
-            validate_array(image, 28)
-            validate_array(image[0], 28)
+            if not isinstance(image, DataPiece):
+                raise TypeError(f"{image} is not an instance of DataPiece or one of its subclasses.")
 
-            # Flatten 28x28 to 784x
-            inputs.append(image.flatten())
-            # Convert label to one-hot list, to match output layer expected behaviour 
-            one_hot = np.zeros(10)
-            one_hot[label] = 1.0
-            labels.append(one_hot)
+            validate_array(image.get_data(), self.layers[0].size)
+            validate_array(label, self.layers[-1].size)
+
+            inputs.append(image)
+            labels.append(label)
         
         # Combine inputs and labels for easy shufling and batching
         combined = list(zip(inputs, labels))
@@ -318,10 +376,9 @@ class NeuralNetwork:
             
             # Train on each batch
             for batch in batches:
-                inputs = [pair[0] for pair in batch]
-                labels = [pair[1] for pair in batch]
-
-                self.gradient_descent_step(inputs, labels, learning_rate)
+                batch_inputs = np.array([pair[0].get_data() for pair in batch])
+                batch_labels = np.array([pair[1] for pair in batch])
+                self.gradient_descent_step(batch_inputs, batch_labels, learning_rate)
 
             learning_rate *= annealing_factor
 
