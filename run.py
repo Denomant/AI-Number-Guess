@@ -1,12 +1,50 @@
 import pygame
 import numpy as np
 import ai
+import cv2
 from Render import render, draw_predictions, paint_brush
 from Buttons import initialize_buttons
 from sys import exit
-from os.path import join
+from os.path import join, isfile
 
 
+# Create custom DataPiece subclass to dynamically load images
+class MNISTDataPiece(ai.DataPiece):
+    """
+    Loads a grayscale 28x28 MNIST image from disk when get_data() is called.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        IOError: If the image can't be loaded.
+        ValueError: If the image is not 28x28 pixels.
+    """
+    def __init__(self, image_path):
+        """
+        Checks that given file exists.
+
+        Parameters:
+        - image_path (str): Expected to contain a full path to the image file (relative or absolute).
+        """
+        if not isfile(image_path):
+            raise FileNotFoundError(f"{image_path} does not exist")
+        self._path = image_path
+
+    def get_data(self):
+        """
+        Loads the image from self._path, validates MNIST shape (28x28), and returns it as a flattened grayscale of shape (784,).
+
+        Returns:
+        - image (np.ndarray): Flattened grayscale version of self._path.
+        """
+        image = cv2.imread(self._path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            raise IOError(f"Could Not Load {self._path}. The file might be corrupted or not an image.")
+
+        if image.shape != (28, 28):
+            raise ValueError(f"{self._path} has invalid dimensions. It's {image.shape} when (28, 28) expected.")
+
+        # Return flatten version to match NeuralNetwork input layer shape
+        return image.flatten()
 
 
 pygame.init()
@@ -27,23 +65,24 @@ current_picture = np.zeros((28, 28), dtype=np.uint8) # uint8 does not support ne
 # Initialize AI, and predicions list
 neural_network = ai.NeuralNetwork([784, 30, 20, 15, 10],
                                   [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,ai.BinaryStep(), ai.Softmax()])
-predictions = [0] * 10 
+predictions = neural_network.forward(current_picture.flatten())
+
+# Initailize drawing constants:
+picture_size = min(HEIGHT, WIDTH//2)
+pixel_size = picture_size // 28
+# Buttons:
+all_buttons = initialize_buttons(screen, current_picture, neural_network)
+# Bars params:
+bar_h = HEIGHT / 3 / 10
+bar_w = WIDTH / 2 / 2
+spacing = bar_h / 10
+start_x = WIDTH / 4 * 3 - (bar_w / 2)
+start_y = HEIGHT / 2 - ((10*bar_h + 9*spacing) / 2)
+
+font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
 
 # Main loop
 if __name__ == '__main__':
-    # Initailize drawing constants:
-    picture_size = min(HEIGHT, WIDTH//2)
-    pixel_size = picture_size // 28
-    # Buttons:
-    all_buttons = initialize_buttons(screen, current_picture, neural_network)
-    # Bars params:
-    bar_h = HEIGHT / 3 / 10
-    bar_w = WIDTH / 2 / 2
-    spacing = bar_h / 10
-    start_x = WIDTH / 4 * 3 - (bar_w / 2)
-    start_y = HEIGHT / 2 - ((10*bar_h + 9*spacing) / 2)
-
-    font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
     while is_active:
         mouse_pos = pygame.mouse.get_pos()
 
@@ -70,9 +109,10 @@ if __name__ == '__main__':
                     case 4: # Scroll up
                         brush_radius += 10 
                         brush_radius = round(brush_radius, -1) # Round to the nearest 10, if last size was pixel_size
+
                     case 5: # Scroll down
                         brush_radius -= 10
-                        brush_radius = max(brush_radius, pixel_size) # prevent negative numbers, and force brush to exist always
+                        brush_radius = max(brush_radius, int(pixel_size * 1.5)) # prevent negative numbers, and force brush to always exist
 
         # Draw while mouse is held down, regardless of event loop
         if pygame.mouse.get_pressed()[0]:  # Left mouse button is held

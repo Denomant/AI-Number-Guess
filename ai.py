@@ -50,6 +50,7 @@ class DataPiece:
 
     Notes:
     - Subclasses should ensure that get_data() returns data compatible with the NeuralNetwork's input layer shape.
+    - For simple cases like generating random data, its possible to override onlt get_data() when subclassing DataPiece.
 
     Parameters:
     - data (Any, optional): The static data that will be returned as is by get_data(). If not provided, get_data() MUST be overridden in the subclass.
@@ -60,17 +61,25 @@ class DataPiece:
     >>> dp1.get_data()
     [1, 2, 4, 2, 1]
 
-    2) Subclassing for generating dynamic data:
-    >>> import numpy as np
-    >>> class RandomNoiseDataPiece(DataPiece):
-    ...     def get_data(self):
-    ...         return np.random.rand(784)
-    >>> dp1 = RandomNoiseDataPiece()
-    >>> dp1.get_data()
-    [0.67, 0.16, 0.52, ..., 0.42]
-    
-    3) Subclassing for loading dynamic data:
-    #TODO: Copy paste when MNIST image loader is ready
+    2) Subclassing for loading dynamic data on a MNIST example:
+    >>>class MNISTDataPiece(DataPiece):
+    ...    def __init__(self, image_path):
+    ...        if not isfile(image_path):
+    ...            raise FileNotFoundError(f"{image_path} does not exist")
+    ...        self._path = image_path
+    ...
+    ...    def get_data(self):
+    ...        image = cv2.imread(self._path, cv2.IMREAD_GRAYSCALE)
+    ...        if image is None:
+    ...            raise IOError(f"Could Not Load {self._path}. The file might be corrupted or not an image.")
+    ...
+    ...        if image.shape != (28, 28):
+    ...            raise ValueError(f"{self._path} has invalid dimensions. It's {image.shape} when (28, 28) expected.")
+    ...
+    ...        return image.flatten()
+    >>>dp1 = MNISTDataPiece("picture_test.png")
+    >>>dp1.get_data()
+    [0, 0, 10, ..., 0]
     """
     def __init__(self, data=None):
         self._data = data
