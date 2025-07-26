@@ -50,33 +50,34 @@ class DataPiece:
 
     Notes:
     - Subclasses should ensure that get_data() returns data compatible with the NeuralNetwork's input layer shape.
-    - For simple cases like generating random data, its possible to override onlt get_data() when subclassing DataPiece.
+    - For simple cases like generating random data, its possible to override only get_data() when subclassing DataPiece.
 
     Parameters:
     - data (Any, optional): The static data that will be returned as is by get_data(). If not provided, get_data() MUST be overridden in the subclass.
 
-    Usage Examples:
+    Examples:
     1) Static Data:
     >>> dp1 = DataPiece([1, 2, 4, 2, 1])
     >>> dp1.get_data()
     [1, 2, 4, 2, 1]
 
     2) Subclassing for loading dynamic data on a MNIST example:
-    >>>class MNISTDataPiece(DataPiece):
-    ...    def __init__(self, image_path):
-    ...        if not isfile(image_path):
-    ...            raise FileNotFoundError(f"{image_path} does not exist")
-    ...        self._path = image_path
-    ...
-    ...    def get_data(self):
-    ...        image = cv2.imread(self._path, cv2.IMREAD_GRAYSCALE)
-    ...        if image is None:
-    ...            raise IOError(f"Could Not Load {self._path}. The file might be corrupted or not an image.")
-    ...
-    ...        if image.shape != (28, 28):
-    ...            raise ValueError(f"{self._path} has invalid dimensions. It's {image.shape} when (28, 28) expected.")
-    ...
-    ...        return image.flatten()
+    >>> import cv2
+    >>> class MNISTDataPiece(DataPiece):
+    ...     def __init__(self, image_path):
+    ...         if not isfile(image_path):
+    ...             raise FileNotFoundError(f"{image_path} does not exist")
+    ...         self._path = image_path
+    ... 
+    ...     def get_data(self):
+    ...         image = cv2.imread(self._path, cv2.IMREAD_GRAYSCALE)
+    ...         if image is None:
+    ...             raise IOError(f"Could Not Load {self._path}. The file might be corrupted or not an image.")
+    ... 
+    ...         if image.shape != (28, 28):
+    ...             raise ValueError(f"{self._path} has invalid dimensions. It's {image.shape} when (28, 28) expected.")
+    ... 
+    ...         return image.flatten()
     >>>dp1 = MNISTDataPiece("picture_test.png")
     >>>dp1.get_data()
     [0, 0, 10, ..., 0]
