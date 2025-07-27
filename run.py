@@ -5,8 +5,8 @@ import cv2
 from Render import render, draw_predictions, paint_brush
 from Buttons import initialize_buttons
 from sys import exit
-from os.path import join, isfile
-
+from os.path import join, isfile, basename
+from os import walk
 
 # Create custom DataPiece subclass to dynamically load images
 class MNISTDataPiece(ai.DataPiece):
@@ -47,6 +47,32 @@ class MNISTDataPiece(ai.DataPiece):
         return image.flatten()
 
 
+def initialize_MNISTDataPieces(root_directory : str=join("dataset_decoded", "train")):
+    data = {}
+
+    for dirpath, dirnames, filenames in walk(root_directory):
+        if dirpath == root_directory:
+            continue # Skip the root directory itself
+
+        # Calculate the label just once for each sub directory
+        label = basename(dirpath)
+        # Edge cases
+        if not label.isdigit():
+                raise ValueError(f"Failed to parse label from directory path '{dirpath}'. Expected a numeric label after '{root_directory}', but got '{label}'.")
+        label = int(label)
+        if label > 9 or label < 0:
+            raise ValueError(f"Invalid label: {label}. Expected a number between 0-9.")
+
+        # Convert label to hot-spot format to match Neural network last layer structure
+        label = np.array([0 if i!=label else 1 for i in range(10)], dtype=np.int8)
+
+        for filename in filenames:
+            # Map the image file (wrapped in MNISTDataPiece object) to its one-hot encoded label
+            data[MNISTDataPiece(join(dirpath, filename))] = label
+
+    return data
+
+
 pygame.init()
 INFO = pygame.display.Info()
 
@@ -83,6 +109,8 @@ font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
 
 # Main loop
 if __name__ == '__main__':
+    train_data = initialize_MNISTDataPieces()
+
     while is_active:
         mouse_pos = pygame.mouse.get_pos()
 
