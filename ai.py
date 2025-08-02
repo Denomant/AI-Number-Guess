@@ -462,9 +462,10 @@ class Softmax(ActivationFunction):
         return exp_x / np.sum(exp_x, axis=0)
 
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
-        # Softmax derivative would require a Jacobian matrix and branching of the whole NeuralNetwork class training, so I used an aproximation
-        s = self(input_data)
-        return s * (1 - s)
+        # My neural network always uses cross-entropy loss, therefore the derivative of softmax cancels out every time.
+        # The derivative function returns a list of ones to neutralize its own effect in the chain rule during backpropagation.
+
+        return np.ones_like(input_data)
 
 
 class ReLU(ActivationFunction):
