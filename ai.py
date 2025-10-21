@@ -90,6 +90,14 @@ class DataPiece:
             raise NotImplementedError("get_data() must be overridden in a subclass or data must be provided during initialization.")
         return self._data
 
+    def __eq__(self, other):
+        if not isinstance(other, DataPiece):
+            return False
+        return self.get_data() == other.get_data()
+
+    def __hash__(self):
+        return hash(tuple(self.get_data()))
+
 
 class Layer:
     """
