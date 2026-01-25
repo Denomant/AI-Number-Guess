@@ -30,6 +30,43 @@ for a in [0, 1]:
             for d in [0, 1]:
                 LOGIC_CASES[DataPiece(np.array([a, b, c, d]))] = np.array([int((a and not b) ^ (c and d))])
 
+def test():
+    # Benchmark AND
+    loss = []
+    print("----------AND AI Predictions----------")
+    for data_input, expected_output  in AND_CASES.items():
+        predict = and_ai(data_input.get_data())
+        loss.append(abs(expected_output - predict)[0])
+        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
+    print("Average loss is", round(sum(loss) / len(loss), 6))
+
+    # Benchmark OR
+    loss = []
+    print("----------OR AI Predictions----------")
+    for data_input, expected_output  in OR_CASES.items():
+        predict = or_ai(data_input.get_data())
+        loss.append(abs(expected_output - predict)[0])
+        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
+    print("Average loss is", round(sum(loss) / len(loss), 6))
+
+    # Benchmark XOR
+    loss = []
+    print("----------XOR AI Predictions----------")
+    for data_input, expected_output  in XOR_CASES.items():
+        predict = xor_ai(data_input.get_data())
+        loss.append(abs(expected_output - predict)[0])
+        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
+    print("Average loss is", round(sum(loss) / len(loss), 6))
+
+    # Benchmark LOGIC
+    loss = []
+    print("----------LOGIC AI Predictions----------")
+    for data_input, expected_output  in LOGIC_CASES.items():
+        predict = logic_ai(data_input.get_data())
+        loss.append(abs(expected_output - predict)[0])
+        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
+    print("Average loss is", round(sum(loss) / len(loss), 6))
+
 if __name__ == "__main__":
     and_ai = NeuralNetwork([2, 2, 1], [Linear(), ReLU(), Sigmoid()])
     or_ai = NeuralNetwork([2, 2, 1], [Linear(), ReLU(), Sigmoid()])
@@ -38,6 +75,9 @@ if __name__ == "__main__":
     logic_ai = NeuralNetwork([4, 8, 4, 1], [Linear(), ReLU(), ReLU(), Sigmoid()]) 
     
     loss = []
+
+    print("==========Predictions Before Learning==========")
+    test()
 
     # Train AND
     and_ai.train(AND_CASES, 1000, 4, 0.9, 0.999)
@@ -51,34 +91,5 @@ if __name__ == "__main__":
     # Train Logic
     logic_ai.train(LOGIC_CASES, 2500, 16, 0.9, 0.999)
     
-    # Benchmark AND
-    print("----------AND AI Predictions----------")
-    for data_input, expected_output  in AND_CASES.items():
-        predict = and_ai(data_input.get_data())
-        loss.append(abs(expected_output - predict)[0])
-        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
-    print("Average loss is", round(sum(loss) / len(loss), 6))
-
-    # Benchmark OR
-    print("----------OR AI Predictions----------")
-    for data_input, expected_output  in OR_CASES.items():
-        predict = or_ai(data_input.get_data())
-        loss.append(abs(expected_output - predict)[0])
-        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
-    print("Average loss is", round(sum(loss) / len(loss), 6))
-
-    # Benchmark XOR
-    print("----------XOR AI Predictions----------")
-    for data_input, expected_output  in XOR_CASES.items():
-        predict = xor_ai(data_input.get_data())
-        loss.append(abs(expected_output - predict)[0])
-        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
-    print("Average loss is", round(sum(loss) / len(loss), 6))
-
-    # Benchmark LOGIC
-    print("----------LOGIC AI Predictions----------")
-    for data_input, expected_output  in LOGIC_CASES.items():
-        predict = logic_ai(data_input.get_data())
-        loss.append(abs(expected_output - predict)[0])
-        print("For input", data_input.get_data(), "the ai predicted", round(predict[0], 4), "when", expected_output[0], "was expected. Loss", round(loss[-1], 4))
-    print("Average loss is", round(sum(loss) / len(loss), 6))
+    print("\n\n==========Predictions After Learning==========")
+    test()

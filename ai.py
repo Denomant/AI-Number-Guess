@@ -6,6 +6,8 @@ ai.NeuralNetwork([784, 30, 20, 15, 10], [ai.Linear(), ai.Sigmoid(), ai.ReLU() ,a
 # Note: Custom activation functions can be used as well, as long as they are callable, accept a numpy array as input, and return a numpy array as output. Follow the ActivationFunction class to avoid conflicts.
 
 Offered Classes:
+ActivationFunction — Abstract class
+DataPiece(data) — Suggested to be inherited
 Layer(size, activation_function)
 WeightMatrix(layer1, layer2)
 NeuralNetwork(layer_sizes, layer_types)
@@ -470,10 +472,9 @@ class Softmax(ActivationFunction):
         return exp_x / np.sum(exp_x, axis=0)
 
     def derivative(self, input_data: np.ndarray) -> np.ndarray:
-        # My neural network always uses cross-entropy loss, therefore the derivative of softmax cancels out every time.
-        # The derivative function returns a list of ones to neutralize its own effect in the chain rule during backpropagation.
-
-        return np.ones_like(input_data)
+        # The derivative function returns the sigmoid derivaive as an approximation
+        activated = self(input_data)
+        return activated * (1 - activated)
 
 
 class ReLU(ActivationFunction):

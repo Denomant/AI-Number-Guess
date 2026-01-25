@@ -2,8 +2,8 @@ import pygame
 import numpy as np
 import ai
 import cv2
-from Render import render, draw_predictions, paint_brush
-from Buttons import initialize_buttons
+from render import render, draw_predictions, paint_brush
+from buttons import initialize_buttons
 from sys import exit
 from os.path import join, isfile, basename
 from os import walk
@@ -109,7 +109,9 @@ font = pygame.font.Font(join("static", "PixelifySans.ttf"), int(bar_h))
 
 # Main loop
 if __name__ == '__main__':
-    train_data = initialize_MNISTDataPieces()
+    # ========== Uncomment to enable AI ==========
+    # train_data = initialize_MNISTDataPieces()
+    # neural_network.train(train_data, epochs=1, batch_size=128, learning_rate=0.999, annealing_factor=0.999)
 
     while is_active:
         mouse_pos = pygame.mouse.get_pos()
@@ -118,7 +120,7 @@ if __name__ == '__main__':
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-                
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 match event.button:
                     case 1: # LMB
